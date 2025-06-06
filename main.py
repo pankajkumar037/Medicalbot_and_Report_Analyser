@@ -91,13 +91,7 @@ llm = ChatGroq(
     temperature=0.7
 )
 
-# Initialize reranker and compression retriever (optional, currently not used by rag_chain)
-cross_encoder_model = HuggingFaceCrossEncoder(model_name="BAAI/bge-reranker-base")
-compressor = CrossEncoderReranker(model=cross_encoder_model, top_n=3)
-compression_retriever = ContextualCompressionRetriever(
-    base_compressor=compressor,
-    base_retriever=retriever
-)
+
 
 # Initialize RAG chain
 rag_chain = ConversationalRetrievalChain.from_llm(
@@ -153,14 +147,4 @@ async def root():
     return {"message": "Welcome to the RAG Chatbot API. Use the /chat endpoint to interact with the chatbot."}
 
 
-# Optional: Run via 'python main.py'
-if __name__ == "__main__":
-    import uvicorn
 
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=int(os.getenv("PORT", 8000)),
-        log_level="info",
-        reload=False,
-    )
