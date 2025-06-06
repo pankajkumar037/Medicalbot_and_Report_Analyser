@@ -14,8 +14,6 @@ from langchain_groq import ChatGroq
 from langchain_core.prompts import PromptTemplate
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_community.cross_encoders import HuggingFaceCrossEncoder
 from langchain.retrievers.document_compressors import CrossEncoderReranker
 from langchain.retrievers import ContextualCompressionRetriever
 
@@ -30,22 +28,26 @@ logger = logging.getLogger(__name__)
 # Load environment variables from .env file
 load_dotenv()
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-if not GROQ_API_KEY:
-    logger.error("GROQ_API_KEY not found in environment variables.")
-    raise RuntimeError("GROQ_API_KEY not found in environment variables.")
-os.environ["GROQ_API_KEY"] = GROQ_API_KEY
+GOOGLE_API_KEY= os.getenv("GOOGLE_API_KEY")
+if not GOOGLE_API_KEY:
+    logger.error("GOOGLE_API_KEY not found in environment variables.")
+    raise RuntimeError("GOOGLE_API_KEYnot found in environment variables.")
+os.environ["GOOGLE_API_KEY"] = GOOGLE_API_KEY
 
 
-from langchain_community.embeddings import HuggingFaceEmbeddings
-embeddings=HuggingFaceEmbeddings(model_name='sentence-transformers/all-MiniLM-L6-v2') 
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
+
+embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+
+
 import os
 PINECONE_API_KEY=os.getenv("PINECONE_API_KEY")
 
 from langchain.vectorstores import Pinecone
 from pinecone import Pinecone,ServerlessSpec
+
 pc=Pinecone(api_key=PINECONE_API_KEY)
-index_name = "medibot"
+index_name = "chatbot"
 index=pc.Index(index_name)
 
 try:
@@ -67,7 +69,7 @@ CUSTOM_PROMPT = PromptTemplate(
     template="""
     Act as a chatbot.
     Use the following context to answer the question directly and concisely in detail.
-    If question is from outside medical fiend jsut say "Please ask amedical Query".
+    If question is from outside medical field just say "Please ask amedical Query".
     Your answer should be formal and simple string.
     Context:
     {context}
@@ -91,13 +93,7 @@ llm = ChatGroq(
     temperature=0.7
 )
 
-# Initialize reranker and compression retriever (optional, currently not used by rag_chain)
-cross_encoder_model = HuggingFaceCrossEncoder(model_name="BAAI/bge-reranker-base")
-compressor = CrossEncoderReranker(model=cross_encoder_model, top_n=3)
-compression_retriever = ContextualCompressionRetriever(
-    base_compressor=compressor,
-    base_retriever=retriever
-)
+
 
 # Initialize RAG chain
 rag_chain = ConversationalRetrievalChain.from_llm(
@@ -110,10 +106,9 @@ rag_chain = ConversationalRetrievalChain.from_llm(
 # Initialize FastAPI app
 app = FastAPI(title="RAG Chatbot API")
 
-# Configure CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Consider restricting origins in production
+    allow_origins=["*"], # This should be restricted in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -152,15 +147,8 @@ async def chat_endpoint(payload: ChatRequest):
 async def root():
     return {"message": "Welcome to the RAG Chatbot API. Use the /chat endpoint to interact with the chatbot."}
 
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy"}
 
-# Optional: Run via 'python main.py'
-if __name__ == "__main__":
-    import uvicorn
 
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=int(os.getenv("PORT", 8000)),
-        log_level="info",
-        reload=False,
-    )
