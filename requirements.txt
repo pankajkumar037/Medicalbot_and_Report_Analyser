@@ -1,0 +1,14 @@
+langchain-groq
+faiss-cpu
+langchain-huggingface
+pdfminer.six
+langchain
+langchain
+langchain-community
+fastapi
+uvicorn[standard]
+python-dotenv
+langchain-huggingface
+langchain-pinecone
+pinecone-client
+huggingface_hub[hf_xet]
