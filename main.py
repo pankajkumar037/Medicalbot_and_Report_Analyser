@@ -4,7 +4,8 @@ import logging
 from typing import List, Optional
 
 import asyncio
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException,UploadFile,File
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -16,6 +17,10 @@ from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
 from langchain.retrievers.document_compressors import CrossEncoderReranker
 from langchain.retrievers import ContextualCompressionRetriever
+import tempfile
+import shutil
+import pathlib
+
 
 
 # Suppress warnings
@@ -141,6 +146,42 @@ async def chat_endpoint(payload: ChatRequest):
     except Exception as e:
         logger.exception("Error in /chat endpoint:")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+from Report_Analyser.report import analyse_medical_report
+from PyPDF2 import PdfReader
+@app.post("/upload-pdf")
+async def analyse_report(file: UploadFile = File(...)):
+    if file.content_type != "application/pdf":
+        raise HTTPException(status_code=400, detail="Uploaded file is not a PDF")
+
+    # Create a temporary file to save uploaded PDF
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
+        shutil.copyfileobj(file.file, temp_file)
+        temp_file_path = pathlib.Path(temp_file.name)
+
+    
+    reader = PdfReader(temp_file_path)
+    text= "\n".join([page.extract_text() or "" for page in reader.pages])
+
+    analysis_result = analyse_medical_report(text)
+
+    # Optionally delete the temp file after processing if no longer needed
+    try:
+        temp_file_path.unlink()
+    except Exception:
+        pass
+
+    return JSONResponse(
+        status_code=200,
+        content={
+            "filename": file.filename,
+            "content_type": file.content_type,
+            "analysis_result": analysis_result,
+        },
+    )
+
+
 
 
 @app.get("/")

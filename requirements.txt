@@ -10,3 +10,6 @@ pinecone-client
 langchain-google-genai
 langchain-pinecone
 pinecone
+python-multipart
+PyPDF2
+google-generativeai
